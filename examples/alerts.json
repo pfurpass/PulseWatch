@@ -1,0 +1,81 @@
+{
+  "alerts": [
+    {
+      "name": "High CPU",
+      "host": "*",
+      "metric": "cpu.usage_percent",
+      "op": ">",
+      "threshold": 90,
+      "for": "5m",
+      "severity": "critical",
+      "notify": ["log", "slack"],
+      "enabled": true
+    },
+    {
+      "name": "High CPU Warning",
+      "host": "*",
+      "metric": "cpu.usage_percent",
+      "op": ">",
+      "threshold": 75,
+      "for": "10m",
+      "severity": "warning",
+      "notify": ["log"],
+      "enabled": true
+    },
+    {
+      "name": "High Memory",
+      "host": "*",
+      "metric": "mem.used_percent",
+      "op": ">",
+      "threshold": 90,
+      "for": "5m",
+      "severity": "critical",
+      "notify": ["log", "webhook"],
+      "enabled": true
+    },
+    {
+      "name": "High Load",
+      "host": "*",
+      "metric": "load.avg1",
+      "op": ">",
+      "threshold": 8,
+      "for": "3m",
+      "severity": "warning",
+      "notify": ["log"],
+      "enabled": true
+    },
+    {
+      "name": "Disk Critical",
+      "host": "*",
+      "metric": "disk.used_percent.root",
+      "op": ">",
+      "threshold": 95,
+      "for": "1m",
+      "severity": "critical",
+      "notify": ["log", "slack"],
+      "enabled": true
+    }
+  ],
+  "channels": {
+    "log": {
+      "type": "log"
+    },
+    "slack": {
+      "type": "slack",
+      "webhook_url": "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+    },
+    "webhook": {
+      "type": "webhook",
+      "webhook_url": "https://your-webhook-endpoint.example.com/alerts"
+    },
+    "email": {
+      "type": "email",
+      "smtp_host": "smtp.example.com",
+      "smtp_port": 587,
+      "smtp_user": "alerts@example.com",
+      "smtp_pass": "your-password",
+      "from": "PulseWatch <alerts@example.com>",
+      "to": ["ops@example.com", "team@example.com"]
+    }
+  }
+}

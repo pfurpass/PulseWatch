@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PulseWatch</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/uPlot/1.6.31/uPlot.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/uPlot/1.6.31/uPlot.iife.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg0:#080b0f; --bg1:#0d1117; --bg2:#131920; --bg3:#1a2230;
+  --border:#1f2d3d; --border2:#253444;
+  --text0:#e6edf3; --text1:#8b98a8; --text2:#4d5d6d;
+  --green:#39d353; --green2:#1a6b2a; --amber:#f0a030; --red:#f04040;
+  --blue:#58a6ff; --cyan:#56d1dc; --purple:#a371f7;
+  --font: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+  --topbar-h:44px; --sidebar-w:210px;
+}
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&display=swap');
+html,body,#root{height:100%;background:var(--bg0);color:var(--text0);font-family:var(--font);font-size:12px;line-height:1.5;overflow:hidden;}
+::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:var(--bg1);}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+
+/* ── Layout ── */
+.app{display:grid;grid-template-rows:var(--topbar-h) 1fr;grid-template-columns:var(--sidebar-w) 1fr;height:100vh;grid-template-areas:"topbar topbar" "sidebar main";}
+
+/* ── Topbar ── */
+.topbar{grid-area:topbar;display:flex;align-items:center;gap:0;background:var(--bg1);border-bottom:1px solid var(--border);padding:0 16px;z-index:100;}
+.logo{display:flex;align-items:center;gap:8px;margin-right:20px;color:var(--green);font-size:13px;font-weight:600;letter-spacing:.05em;flex-shrink:0;}
+.logo svg{width:20px;height:20px;}
+.topbar-stats{display:flex;gap:0;flex:1;overflow:hidden;}
+.tstat{display:flex;align-items:center;gap:5px;padding:0 12px;border-right:1px solid var(--border);white-space:nowrap;flex-shrink:0;}
+.tstat:first-child{border-left:1px solid var(--border);}
+.tstat .lbl{color:var(--text2);text-transform:uppercase;font-size:9px;letter-spacing:.1em;}
+.tstat .val{color:var(--text0);font-weight:500;}
+.tstat .val.w{color:var(--amber);}.tstat .val.c{color:var(--red);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.live-badge{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.1em;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--text2);}
+.live-dot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.5;}}
+
+/* ── Edit Mode Toggle ── */
+.edit-btn{background:transparent;border:1px solid var(--border);color:var(--text1);font-family:var(--font);font-size:10px;padding:4px 10px;border-radius:3px;cursor:pointer;transition:all .15s;letter-spacing:.05em;text-transform:uppercase;}
+.edit-btn:hover{border-color:var(--border2);color:var(--text0);}
+.edit-btn.active{background:var(--green2);border-color:var(--green);color:var(--green);}
+.save-btn{background:var(--green2);border:1px solid var(--green);color:var(--green);font-family:var(--font);font-size:10px;padding:4px 10px;border-radius:3px;cursor:pointer;transition:background .15s;letter-spacing:.05em;}
+.save-btn:hover{background:#26973a;}
+.icon-btn{background:transparent;border:1px solid var(--border);color:var(--text1);font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:3px;cursor:pointer;transition:all .15s;}
+.icon-btn:hover{border-color:var(--border2);color:var(--text0);}
+.icon-btn.danger:hover{border-color:var(--red);color:var(--red);}
+
+/* ── Sidebar ── */
+.sidebar{grid-area:sidebar;background:var(--bg1);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+.sb-section{padding:10px 0;border-bottom:1px solid var(--border);}
+.sb-title{padding:0 14px 7px;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text2);}
+.host-item{display:flex;align-items:center;gap:7px;padding:5px 14px;cursor:pointer;border-left:2px solid transparent;transition:background .1s;}
+.host-item:hover{background:var(--bg2);}
+.host-item.active{background:var(--bg2);border-left-color:var(--green);}
+.host-dot{width:5px;height:5px;border-radius:50%;background:var(--text2);flex-shrink:0;}
+.host-dot.on{background:var(--green);box-shadow:0 0 4px var(--green);}
+.host-name{font-size:11px;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.host-item.active .host-name{color:var(--text0);}
+.sb-empty{padding:10px 14px;color:var(--text2);font-size:11px;font-style:italic;}
+.input-row{padding:7px 12px;display:flex;gap:5px;}
+.sb-input{flex:1;background:var(--bg2);border:1px solid var(--border);color:var(--text0);font-family:var(--font);font-size:10px;padding:5px 8px;border-radius:3px;outline:none;min-width:0;}
+.sb-input::placeholder{color:var(--text2);}
+.sb-input:focus{border-color:var(--green2);}
+.add-btn{background:var(--green2);border:1px solid var(--green);color:var(--green);font-family:var(--font);font-size:11px;padding:4px 8px;border-radius:3px;cursor:pointer;flex-shrink:0;}
+.add-btn:hover{background:#26973a;}
+.time-btns{padding:6px 12px;display:flex;gap:3px;flex-wrap:wrap;}
+.tbtn{background:var(--bg2);border:1px solid var(--border);color:var(--text1);font-family:var(--font);font-size:9px;padding:3px 7px;border-radius:3px;cursor:pointer;transition:all .1s;}
+.tbtn:hover{color:var(--text0);}
+.tbtn.active{background:var(--bg3);border-color:var(--green2);color:var(--green);}
+
+/* ── Dashboard list ── */
+.db-item{display:flex;align-items:center;justify-content:space-between;padding:5px 14px;cursor:pointer;border-left:2px solid transparent;transition:background .1s;}
+.db-item:hover{background:var(--bg2);}
+.db-item.active{background:var(--bg2);border-left-color:var(--blue);}
+.db-item-name{font-size:11px;color:var(--text1);}
+.db-item.active .db-item-name{color:var(--text0);}
+.db-del{background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:12px;padding:0 2px;line-height:1;}
+.db-del:hover{color:var(--red);}
+
+/* ── Main ── */
+.main{grid-area:main;overflow-y:auto;background:var(--bg0);position:relative;}
+
+/* ── Dashboard Grid ── */
+.dash-grid{padding:14px;display:grid;grid-template-columns:repeat(12,1fr);gap:10px;align-items:start;}
+.dash-grid.edit-mode .widget-card{cursor:move;}
+.dash-grid.edit-mode .widget-card:hover{border-color:var(--border2);box-shadow:0 0 0 1px var(--blue);}
+
+/* ── Widget Card ── */
+.widget-card{background:var(--bg1);border:1px solid var(--border);border-radius:4px;overflow:hidden;position:relative;transition:border-color .15s;}
+.widget-card.dragging{opacity:.6;border-color:var(--blue);box-shadow:0 0 0 2px var(--blue);}
+.widget-card.drop-target{border-color:var(--green);box-shadow:0 0 0 2px var(--green);}
+
+.widget-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px 7px;border-bottom:1px solid var(--border);gap:8px;}
+.widget-title{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.1em;color:var(--text1);}
+.widget-actions{display:flex;gap:4px;align-items:center;flex-shrink:0;}
+.widget-drag-handle{cursor:grab;color:var(--text2);padding:0 3px;font-size:14px;line-height:1;user-select:none;}
+.widget-drag-handle:active{cursor:grabbing;}
+.widget-edit-btn{background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:10px;padding:0 3px;font-family:var(--font);}
+.widget-edit-btn:hover{color:var(--text0);}
+.widget-del-btn{background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:12px;padding:0 3px;line-height:1;}
+.widget-del-btn:hover{color:var(--red);}
+.widget-val-badge{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;}
+.widget-val-badge.w{color:var(--amber);}.widget-val-badge.c{color:var(--red);}
+.widget-unit{font-size:10px;color:var(--text2);margin-left:2px;}
+
+/* ── Widget types ── */
+/* Stat */
+.stat-body{padding:14px;display:flex;flex-direction:column;gap:6px;}
+.stat-big{font-size:32px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text0);line-height:1;}
+.stat-big.w{color:var(--amber);}.stat-big.c{color:var(--red);}
+.stat-sub{font-size:10px;color:var(--text2);}
+.mini-bar-wrap{height:3px;background:var(--bg3);border-radius:2px;margin-top:4px;}
+.mini-bar{height:100%;background:var(--green);border-radius:2px;transition:width .5s;}
+.mini-bar.w{background:var(--amber);}.mini-bar.c{background:var(--red);}
+
+/* Gauge */
+.gauge-body{padding:12px;display:flex;justify-content:center;align-items:center;}
+.gauge-wrap{position:relative;display:inline-block;}
+.gauge-wrap svg{display:block;}
+.gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.gauge-val{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;}
+.gauge-unit{font-size:9px;color:var(--text2);margin-top:1px;}
+
+/* Table */
+.table-body{overflow-x:auto;}
+.metric-table{width:100%;border-collapse:collapse;}
+.metric-table th{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--text2);padding:5px 12px;text-align:left;border-bottom:1px solid var(--border);font-weight:500;}
+.metric-table td{font-size:11px;padding:4px 12px;color:var(--text1);border-bottom:1px solid var(--border);}
+.metric-table tr:last-child td{border-bottom:none;}
+.metric-table td.val-col{color:var(--text0);font-weight:500;text-align:right;font-variant-numeric:tabular-nums;}
+.metric-table tr:hover td{background:var(--bg2);}
+
+/* ── Modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:flex;align-items:center;justify-content:center;}
+.modal{background:var(--bg1);border:1px solid var(--border2);border-radius:6px;width:480px;max-height:80vh;overflow-y:auto;}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);}
+.modal-title{font-size:12px;font-weight:600;letter-spacing:.05em;}
+.modal-close{background:transparent;border:none;color:var(--text1);cursor:pointer;font-size:18px;line-height:1;padding:0;}
+.modal-close:hover{color:var(--text0);}
+.modal-body{padding:18px;display:flex;flex-direction:column;gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-label{font-size:9px;text-transform:uppercase;letter-spacing:.12em;color:var(--text2);}
+.form-input,.form-select{background:var(--bg2);border:1px solid var(--border);color:var(--text0);font-family:var(--font);font-size:11px;padding:6px 10px;border-radius:3px;outline:none;width:100%;}
+.form-input:focus,.form-select:focus{border-color:var(--green2);}
+.form-select option{background:var(--bg2);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.form-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.modal-footer{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+.btn-primary{background:var(--green2);border:1px solid var(--green);color:var(--green);font-family:var(--font);font-size:10px;padding:6px 16px;border-radius:3px;cursor:pointer;}
+.btn-primary:hover{background:#26973a;}
+.btn-secondary{background:transparent;border:1px solid var(--border);color:var(--text1);font-family:var(--font);font-size:10px;padding:6px 16px;border-radius:3px;cursor:pointer;}
+.btn-secondary:hover{color:var(--text0);border-color:var(--border2);}
+
+/* ── Add widget panel ── */
+.add-widget-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--border);margin-top:auto;}
+.widget-type-btn{display:flex;flex-direction:column;align-items:center;gap:3px;background:var(--bg2);border:1px solid var(--border);color:var(--text1);font-family:var(--font);font-size:8px;padding:6px 8px;border-radius:3px;cursor:pointer;transition:all .15s;letter-spacing:.05em;text-transform:uppercase;width:100%;}
+.widget-type-btn:hover{border-color:var(--border2);color:var(--text0);}
+.widget-type-btn .wt-icon{font-size:14px;margin-bottom:1px;}
+
+/* ── Empty state ── */
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text2);height:300px;}
+.empty-state h2{font-size:13px;font-weight:400;letter-spacing:.05em;}
+.empty-state p{font-size:11px;}
+
+/* ── Resize handle ── */
+.resize-handle{position:absolute;bottom:0;right:0;width:14px;height:14px;cursor:se-resize;display:none;}
+.edit-mode .resize-handle{display:block;}
+.resize-handle::after{content:'';position:absolute;bottom:3px;right:3px;width:7px;height:7px;border-right:2px solid var(--border2);border-bottom:2px solid var(--border2);}
+
+/* ── Scanline ── */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:9999;}
+
+/* ── Spinner ── */
+.spinner{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-box{height:100px;display:flex;align-items:center;justify-content:center;}
+
+/* ── Notification ── */
+.notif{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--green2);color:var(--green);padding:8px 16px;border-radius:4px;font-size:11px;z-index:2000;animation:fadein .2s;pointer-events:none;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── Alert Panel ── */
+.alert-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;padding:2px 6px;border-radius:10px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;}
+.alert-badge.crit{background:rgba(240,64,64,.15);border:1px solid #f04040;color:#f04040;}
+.alert-badge.warn{background:rgba(240,160,48,.15);border:1px solid #f0a030;color:#f0a030;}
+.alert-badge.info{background:rgba(88,166,255,.15);border:1px solid #58a6ff;color:#58a6ff;}
+.alert-badge.ok{background:rgba(57,211,83,.12);border:1px solid #39d353;color:#39d353;}
+.alert-item{padding:8px 14px;border-bottom:1px solid var(--border);cursor:default;transition:background .1s;}
+.alert-item:hover{background:var(--bg2);}
+.alert-item:last-child{border-bottom:none;}
+.alert-name{font-size:11px;color:var(--text0);font-weight:500;margin-bottom:2px;}
+.alert-meta{font-size:10px;color:var(--text2);}
+.alert-val{font-size:10px;color:var(--text1);margin-top:2px;}
+/* ── Anomaly dot on widget ── */
+.anomaly-dot{position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber);animation:blink 1.5s infinite;z-index:10;}
+/* ── Settings panel ── */
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;}
+.settings-label{font-size:10px;color:var(--text1);}
+.settings-input{background:var(--bg2);border:1px solid var(--border);color:var(--text0);font-family:var(--font);font-size:10px;padding:3px 7px;border-radius:3px;outline:none;width:90px;text-align:right;}
+.settings-input:focus{border-color:var(--green2);}
+/* ── Auth overlay ── */
+.auth-overlay{position:fixed;inset:0;background:var(--bg0);z-index:5000;display:flex;align-items:center;justify-content:center;}
+.auth-box{background:var(--bg1);border:1px solid var(--border2);border-radius:6px;padding:32px 36px;width:320px;display:flex;flex-direction:column;gap:16px;}
+.auth-title{font-size:16px;font-weight:600;color:var(--green);letter-spacing:.05em;text-align:center;}
+.auth-subtitle{font-size:10px;color:var(--text2);text-align:center;margin-top:-10px;}
+.auth-err{font-size:10px;color:var(--red);text-align:center;min-height:14px;}
+/* ── Prom targets section ── */
+.tag-chip{display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:3px;font-size:9px;padding:2px 6px;color:var(--text1);}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// Use location.host so the UI works on any port automatically
+const SERVER = `${location.protocol}//${location.host}`;
+const WS_URL  = `${location.protocol==='https:'?'wss':'ws'}://${location.host}`;
+
+// ── Formatters ──────────────────────────────────────────────────────────────
+const fmt = {
+  pct:  v => v==null ? '--' : v.toFixed(1),
+  bps:  v => { if(v==null) return '--'; if(v<1024) return `${v.toFixed(0)} B/s`; if(v<1024**2) return `${(v/1024).toFixed(1)} KB/s`; return `${(v/1024**2).toFixed(2)} MB/s`; },
+  bytes:v => { if(v==null) return '--'; if(v<1024) return `${v.toFixed(0)} B`; if(v<1024**2) return `${(v/1024).toFixed(1)} KB`; if(v<1024**3) return `${(v/1024**2).toFixed(1)} MB`; return `${(v/1024**3).toFixed(2)} GB`; },
+  num:  (v,d=2) => v==null ? '--' : v.toFixed(d),
+  ts:   ms => { const d=new Date(ms); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; },
+  auto: (v, unit) => {
+    if(v==null) return '--';
+    if(unit==='%') return v.toFixed(1);
+    if(unit==='B/s') return fmt.bps(v);
+    if(unit==='B') return fmt.bytes(v);
+    return v.toFixed(2);
+  }
+};
+
+// ── API ────────────────────────────────────────────────────────────────────
+const authHeaders = () => {
+  const token = window._pwToken || sessionStorage.getItem('pw_token') || '';
+  return token ? {'Authorization': `Bearer ${token}`} : {};
+};
+const api = {
+  get:  p  => fetch(`${SERVER}${p}`, {headers: authHeaders()}).then(r=>r.json()),
+  post: (p,b) => fetch(`${SERVER}${p}`,{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify(b)}).then(r=>r.json()),
+  query:(host,metric,from,pts=500) =>
+    fetch(`${SERVER}/api/v1/query?host=${encodeURIComponent(host)}&metric=${encodeURIComponent(metric)}&from=${from}&points=${pts}`)
+      .then(r=>r.json()).catch(()=>null),
+};
+
+// ── Default dashboards ─────────────────────────────────────────────────────
+const mkId = () => Math.random().toString(36).slice(2,8);
+
+function defaultDashboard(host) {
+  return {
+    id: mkId(), name: 'Overview', host,
+    widgets: [
+      { id:mkId(), type:'stat',       col:1,  row:1, w:3, h:1, title:'CPU',     metric:'cpu.usage_percent',  unit:'%',    warnAt:80, critAt:90 },
+      { id:mkId(), type:'stat',       col:4,  row:1, w:3, h:1, title:'Memory',  metric:'mem.used_percent',   unit:'%',    warnAt:85, critAt:95 },
+      { id:mkId(), type:'stat',       col:7,  row:1, w:3, h:1, title:'Load 1m', metric:'load.avg1',          unit:'',     warnAt:4,  critAt:8  },
+      { id:mkId(), type:'stat',       col:10, row:1, w:3, h:1, title:'Mem Used',metric:'mem.used_bytes',      unit:'B',    warnAt:null,critAt:null},
+      { id:mkId(), type:'gauge',      col:1,  row:2, w:3, h:2, title:'CPU %',   metric:'cpu.usage_percent',  unit:'%',    max:100 },
+      { id:mkId(), type:'gauge',      col:4,  row:2, w:3, h:2, title:'Mem %',   metric:'mem.used_percent',   unit:'%',    max:100 },
+      { id:mkId(), type:'timeseries', col:7,  row:2, w:6, h:2, title:'CPU History', metric:'cpu.usage_percent', unit:'%', color:'#39d353', min:0, max:100 },
+      { id:mkId(), type:'timeseries', col:1,  row:4, w:6, h:2, title:'Memory',  metric:'mem.used_percent',   unit:'%',    color:'#58a6ff', min:0, max:100 },
+      { id:mkId(), type:'timeseries', col:7,  row:4, w:6, h:2, title:'Load',    metric:'load.avg1',          unit:'',     color:'#f0a030', min:0 },
+      { id:mkId(), type:'table',      col:1,  row:6, w:12,h:2, title:'All Metrics', metric:'*' },
+    ]
+  };
+}
+
+// ── Storage (localStorage) ─────────────────────────────────────────────────
+const store = {
+  load: () => { try { return JSON.parse(localStorage.getItem('pw_dashboards') || '[]'); } catch(e) { return []; } },
+  save: dbs => { try { localStorage.setItem('pw_dashboards', JSON.stringify(dbs)); } catch(e) {} },
+};
+
+// ── uPlot Chart ────────────────────────────────────────────────────────────
+function Chart({ series, color='#39d353', min, max, height=120 }) {
+  const ref = useRef(null);
+  const plot = useRef(null);
+
+  useEffect(() => {
+    if(!ref.current || !series) return;
+    const w = ref.current.clientWidth;
+    if(w < 10) return;
+    if(plot.current) { try{plot.current.destroy();}catch(e){} plot.current=null; }
+    const opts = {
+      width:w, height,
+      padding:[8,0,0,0],
+      cursor:{show:true,drag:{x:false,y:false}},
+      legend:{show:false},
+      scales:{x:{time:true},y:{range:(u,lo,hi)=>{const mn=min!=null?min:Math.min(0,lo);const mx=max!=null?max:Math.max(hi*1.1,mn+1);return[mn,mx];}}},
+      axes:[
+        {stroke:'#4d5d6d',ticks:{stroke:'#1f2d3d',width:1},grid:{stroke:'#131920',width:1},
+         vals:(u,vs)=>vs.map(v=>fmt.ts(v*1000)),font:'10px JetBrains Mono,monospace',space:60},
+        {stroke:'#4d5d6d',ticks:{stroke:'#1f2d3d',width:1},grid:{stroke:'#131920',width:1},
+         font:'10px JetBrains Mono,monospace',size:44},
+      ],
+      series:[{},{ stroke:color, width:1.5, fill:`${color}18`, points:{show:false} }],
+    };
+    try { plot.current = new uPlot(opts, series, ref.current); } catch(e){}
+    return ()=>{ if(plot.current){try{plot.current.destroy();}catch(e){} plot.current=null;} };
+  }, []);
+
+  useEffect(() => {
+    if(!plot.current || !series) return;
+    try { plot.current.setData(series); } catch(e){}
+  }, [series]);
+
+  useEffect(() => {
+    if(!ref.current) return;
+    const ro = new ResizeObserver(es => {
+      if(!plot.current) return;
+      const w = es[0].contentRect.width;
+      if(w>10) try{plot.current.setSize({width:w,height});}catch(e){}
+    });
+    ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, [height]);
+
+  if(!series) return <div className="loading-box"><div className="spinner"/></div>;
+  return <div ref={ref} style={{width:'100%'}}/>;
+}
+
+// ── Gauge Widget ──────────────────────────────────────────────────────────
+function Gauge({ value, max=100, unit='', warnAt, critAt, size=110 }) {
+  const pct = value!=null ? Math.min(100, Math.max(0, (value/max)*100)) : 0;
+  const r = 44, cx = 60, cy = 60;
+  const startAngle = -215, totalDeg = 250;
+  const angle = startAngle + (pct/100)*totalDeg;
+  const toRad = d => d*Math.PI/180;
+  const arc = (a1, a2, ra) => {
+    const x1=cx+ra*Math.cos(toRad(a1)), y1=cy+ra*Math.sin(toRad(a1));
+    const x2=cx+ra*Math.cos(toRad(a2)), y2=cy+ra*Math.sin(toRad(a2));
+    const lg = (a2-a1+360)%360>180?1:0;
+    return `M${x1},${y1} A${ra},${ra} 0 ${lg},1 ${x2},${y2}`;
+  };
+  const cls = value!=null && critAt!=null && value>=critAt ? 'c'
+            : value!=null && warnAt!=null && value>=warnAt ? 'w' : '';
+  const trackColor = '#1a2230';
+  const fillColor  = cls==='c'?'#f04040':cls==='w'?'#f0a030':'#39d353';
+
+  return (
+    <div className="gauge-body">
+      <div className="gauge-wrap" style={{width:size,height:size}}>
+        <svg viewBox="0 0 120 120" width={size} height={size}>
+          <path d={arc(-215,35,r)} fill="none" stroke={trackColor} strokeWidth="10" strokeLinecap="round"/>
+          {value!=null && pct>0 &&
+            <path d={arc(-215,angle,r)} fill="none" stroke={fillColor} strokeWidth="10" strokeLinecap="round"
+              style={{filter:`drop-shadow(0 0 4px ${fillColor}88)`}}/>
+          }
+        </svg>
+        <div className="gauge-center">
+          <span className={`gauge-val ${cls}`}>{value!=null?value.toFixed(1):'--'}</span>
+          {unit && <span className="gauge-unit">{unit}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Series data hook ───────────────────────────────────────────────────────
+function useSeriesData(host, metric, timeRange, liveSnaps) {
+  const [series, setSeries] = useState(null);
+  const buf = useRef({ts:[],vals:[]});
+
+  useEffect(() => {
+    if(!host||!metric||metric==='*') return;
+    let ok=true;
+    api.query(host,metric,timeRange).then(r=>{
+      if(!ok||!r||!r.points) return;
+      buf.current = { ts:r.points.map(p=>p.t/1000), vals:r.points.map(p=>p.v) };
+      setSeries([buf.current.ts, buf.current.vals]);
+    });
+    return ()=>{ok=false;};
+  },[host,metric,timeRange]);
+
+  useEffect(()=>{
+    if(!liveSnaps||!host||!metric||metric==='*') return;
+    const snap = liveSnaps[host];
+    if(!snap||snap.metrics[metric]==null) return;
+    const t=snap.ts/1000, v=snap.metrics[metric];
+    const b=buf.current;
+    if(b.ts.length>0&&b.ts[b.ts.length-1]>=t) return;
+    b.ts.push(t); b.vals.push(v);
+    if(b.ts.length>3600){b.ts.shift();b.vals.shift();}
+    setSeries([b.ts.slice(),b.vals.slice()]);
+  },[liveSnaps,host,metric]);
+
+  return series;
+}
+
+// ── Widget ────────────────────────────────────────────────────────────────
+function Widget({ w, host, liveSnaps, timeRange, editMode, anomalyScore, onDelete, onEdit, onDragStart, onDragOver, onDrop, isDragging, isDropTarget }) {
+  const live = liveSnaps?.[host]?.metrics ?? {};
+  const val  = w.metric!=='*' ? live[w.metric] : null;
+  const series = useSeriesData(host, w.metric, timeRange, liveSnaps);
+  const chartH = w.h===1?90:w.h===2?140:w.h*80;
+
+  const cls = val!=null && w.critAt!=null && val>=w.critAt ? 'c'
+            : val!=null && w.warnAt!=null && val>=w.warnAt ? 'w' : '';
+  const fmtVal = fmt.auto(val, w.unit);
+
+  // Resize
+  const resizeRef = useRef(null);
+  const handleResize = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    // Simpel: noop for now (handled by edit modal)
+  };
+
+  let body = null;
+  if(w.type==='stat') {
+    body=(
+      <div className="stat-body">
+        <div className={`stat-big ${cls}`}>{fmtVal}<span style={{fontSize:14,fontWeight:400,color:'var(--text2)',marginLeft:4}}>{w.unit}</span></div>
+        {w.warnAt!=null&&<div className="stat-sub">warn ≥{w.warnAt} · crit ≥{w.critAt}</div>}
+        {w.unit==='%'&&val!=null&&(
+          <div className="mini-bar-wrap"><div className={`mini-bar ${cls}`} style={{width:`${Math.min(100,val)}%`}}/></div>
+        )}
+      </div>
+    );
+  } else if(w.type==='gauge') {
+    const gaugeSize = w.h===1?80:w.h===2?110:130;
+    body=<Gauge value={val} max={w.max||100} unit={w.unit} warnAt={w.warnAt} critAt={w.critAt} size={gaugeSize}/>;
+  } else if(w.type==='timeseries') {
+    body=<div style={{padding:'4px 0 0'}}><Chart series={series} color={w.color||'#39d353'} min={w.min} max={w.max} height={chartH}/></div>;
+  } else if(w.type==='table') {
+    const entries = Object.entries(live).sort((a,b)=>a[0].localeCompare(b[0]));
+    body=(
+      <div className="table-body">
+        <table className="metric-table">
+          <thead><tr><th>Metric</th><th style={{textAlign:'right'}}>Value</th></tr></thead>
+          <tbody>
+            {entries.map(([k,v])=>(
+              <tr key={k}>
+                <td>{k}</td>
+                <td className="val-col">{typeof v==='number'?v.toFixed(3):v}</td>
+              </tr>
+            ))}
+            {entries.length===0&&<tr><td colSpan={2} style={{color:'var(--text2)',fontStyle:'italic'}}>No data</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`widget-card ${isDragging?'dragging':''} ${isDropTarget?'drop-target':''}`}
+      style={{gridColumn:`span ${w.w}`,gridRow:`span ${w.h}`}}
+      draggable={editMode}
+      onDragStart={editMode?()=>onDragStart(w.id):null}
+      onDragOver={editMode?e=>{e.preventDefault();onDragOver(w.id);}:null}
+      onDrop={editMode?e=>{e.preventDefault();onDrop(w.id);}:null}
+    >
+      <div className="widget-header">
+        <div style={{display:'flex',alignItems:'center',gap:7}}>
+          {editMode&&<span className="widget-drag-handle">⠿</span>}
+          <span className="widget-title">{w.title}</span>
+          {anomalyScore?.is_anomaly&&<span style={{fontSize:9,color:'var(--amber)',letterSpacing:'.05em'}}>⚠ ANOMALY</span>}
+        </div>
+        <div className="widget-actions">
+          {w.type!=='table'&&w.type!=='timeseries'&&val!=null&&(
+            <span className={`widget-val-badge ${cls}`}>{fmtVal}<span className="widget-unit">{w.unit}</span></span>
+          )}
+          {w.type==='timeseries'&&val!=null&&(
+            <span className={`widget-val-badge ${cls}`}>{fmtVal}<span className="widget-unit">{w.unit}</span></span>
+          )}
+          {editMode&&<>
+            <button className="widget-edit-btn" onClick={()=>onEdit(w)} title="Edit widget">✎</button>
+            <button className="widget-del-btn" onClick={()=>onDelete(w.id)} title="Delete widget">✕</button>
+          </>}
+        </div>
+      </div>
+      {body}
+      {editMode&&<div className="resize-handle" ref={resizeRef} onMouseDown={handleResize}/>}
+      {anomalyScore?.is_anomaly&&(
+        <div className="anomaly-dot" title={`Anomaly detected: z-score ${anomalyScore.z_score?.toFixed(2)}`}/>
+      )}
+    </div>
+  );
+}
+
+// ── Widget Edit Modal ─────────────────────────────────────────────────────
+function WidgetModal({ widget, allMetrics, onSave, onClose }) {
+  const [form, setForm] = useState({
+    title: widget?.title||'', type: widget?.type||'timeseries',
+    metric: widget?.metric||'cpu.usage_percent', unit: widget?.unit||'%',
+    color: widget?.color||'#39d353', min: widget?.min??0, max: widget?.max??100,
+    warnAt: widget?.warnAt??'', critAt: widget?.critAt??'',
+    w: widget?.w||6, h: widget?.h||2,
+  });
+  const set = k => e => setForm(f=>({...f,[k]:e.target.value}));
+  const setN = k => e => setForm(f=>({...f,[k]:e.target.value===''?'':Number(e.target.value)}));
+
+  const COLORS = ['#39d353','#58a6ff','#f0a030','#56d1dc','#a371f7','#f04040','#ffffff'];
+
+  return (
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal">
+        <div className="modal-header">
+          <span className="modal-title">{widget?'Edit Widget':'Add Widget'}</span>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">Widget Type</label>
+            <select className="form-select" value={form.type} onChange={set('type')}>
+              <option value="timeseries">Timeseries Chart</option>
+              <option value="stat">Stat (Big Number)</option>
+              <option value="gauge">Gauge</option>
+              <option value="table">Metrics Table</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Title</label>
+            <input className="form-input" value={form.title} onChange={set('title')} placeholder="Widget title"/>
+          </div>
+          {form.type!=='table'&&(
+            <div className="form-group">
+              <label className="form-label">Metric</label>
+              <select className="form-select" value={form.metric} onChange={set('metric')}>
+                {allMetrics.map(m=><option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Unit</label>
+              <select className="form-select" value={form.unit} onChange={set('unit')}>
+                <option value="%">%</option>
+                <option value="B/s">B/s</option>
+                <option value="B">Bytes</option>
+                <option value="">None</option>
+              </select>
+            </div>
+            {(form.type==='timeseries')&&(
+              <div className="form-group">
+                <label className="form-label">Color</label>
+                <div style={{display:'flex',gap:5,alignItems:'center',marginTop:4}}>
+                  {COLORS.map(c=>(
+                    <div key={c} onClick={()=>setForm(f=>({...f,color:c}))}
+                      style={{width:18,height:18,borderRadius:3,background:c,cursor:'pointer',border:form.color===c?'2px solid var(--text0)':'2px solid transparent'}}/>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {form.type!=='table'&&(
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Warn At</label>
+                <input className="form-input" type="number" value={form.warnAt} onChange={setN('warnAt')} placeholder="e.g. 80"/>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Crit At</label>
+                <input className="form-input" type="number" value={form.critAt} onChange={setN('critAt')} placeholder="e.g. 90"/>
+              </div>
+            </div>
+          )}
+          {(form.type==='timeseries'||form.type==='gauge')&&(
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Scale Min</label>
+                <input className="form-input" type="number" value={form.min??''} onChange={setN('min')}/>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Scale Max</label>
+                <input className="form-input" type="number" value={form.max??''} onChange={setN('max')}/>
+              </div>
+            </div>
+          )}
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Width (columns, 1–12)</label>
+              <input className="form-input" type="number" min={1} max={12} value={form.w} onChange={setN('w')}/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Height (rows, 1–4)</label>
+              <input className="form-input" type="number" min={1} max={4} value={form.h} onChange={setN('h')}/>
+            </div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={()=>onSave(form)}>
+            {widget?'Save Changes':'Add Widget'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Dashboard Name Modal ──────────────────────────────────────────────────
+function NameModal({ initial='', onSave, onClose }) {
+  const [v,setV] = useState(initial);
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal" style={{width:320}}>
+        <div className="modal-header">
+          <span className="modal-title">Dashboard Name</span>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <label className="form-label">Name</label>
+            <input className="form-input" value={v} onChange={e=>setV(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&v.trim()&&onSave(v.trim())} autoFocus/>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={()=>v.trim()&&onSave(v.trim())}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────
+function App() {
+  const [hosts, setHosts]           = useState([]);
+  const [selectedHost, setHost]     = useState(null);
+  const [allMetrics, setMetrics]    = useState([]);
+  const [liveSnaps, setLiveSnaps]   = useState({});
+  const [wsState, setWsState]       = useState('disconnected');
+  const [timeRange, setTimeRange]   = useState('-1h');
+  const [editMode, setEditMode]     = useState(false);
+  const [sideTab, setSideTab]       = useState('hosts'); // hosts|alerts|prom|settings
+  const { active: activeAlerts, history: alertHistory } = useAlerts();
+  const anomalies = useAnomalies(selectedHost);
+  const { user, authEnabled, loading, login, logout } = useAuth();
+  const [dashboards, setDashboards] = useState([]);
+  const [activeDashId, setActiveDashId] = useState(null);
+  const [modal, setModal]           = useState(null); // {type:'widget'|'name'|'newDash', widget?}
+  const [agentAddr, setAgentAddr]   = useState('http://localhost:19998');
+  const [dragId, setDragId]         = useState(null);
+  const [dropId, setDropId]         = useState(null);
+  const [notif, setNotif]           = useState(null);
+
+  // ── Load dashboards from localStorage ──────────────────────────────────
+  useEffect(()=>{
+    const saved = store.load();
+    setDashboards(saved);
+    if(saved.length>0) setActiveDashId(saved[0].id);
+  },[]);
+
+  const activeDash = dashboards.find(d=>d.id===activeDashId) || null;
+
+  // ── Hosts ───────────────────────────────────────────────────────────────
+  const loadHosts = useCallback(async()=>{
+    try{
+      const d = await api.get('/api/v1/hosts');
+      const hs = d.hosts ?? [];
+      setHosts(hs);
+      if(hs.length > 0) {
+        setHost(prev => prev && hs.includes(prev) ? prev : hs[0]);
+      }
+    }catch(e){}
+  },[]);
+
+  // Fast polling at first (every 1s for 30s), then every 5s
+  useEffect(()=>{
+    loadHosts();
+    let fast = true;
+    const fastT = setInterval(loadHosts, 1000);
+    const slowT = setTimeout(()=>{
+      clearInterval(fastT);
+      fast = false;
+      setInterval(loadHosts, 5000);
+    }, 30000);
+    return()=>{ clearInterval(fastT); clearTimeout(slowT); };
+  },[]);
+
+  // Auto-create default dashboard when host changes
+  useEffect(()=>{
+    if(!selectedHost) return;
+    const existing = dashboards.find(d=>d.host===selectedHost);
+    if(!existing){
+      const nd = defaultDashboard(selectedHost);
+      setDashboards(prev=>{const next=[...prev,nd];store.save(next);return next;});
+      setActiveDashId(nd.id);
+    } else {
+      setActiveDashId(existing.id);
+    }
+  },[selectedHost]);
+
+  // ── Metrics ─────────────────────────────────────────────────────────────
+  useEffect(()=>{
+    if(!selectedHost) return;
+    api.get(`/api/v1/hosts/${selectedHost}/metrics`).then(d=>setMetrics(d.metrics??[])).catch(()=>{});
+  },[selectedHost]);
+
+  // ── WebSocket ───────────────────────────────────────────────────────────
+  useEffect(()=>{
+    let ws,retry;
+    const connect=()=>{
+      setWsState('connecting');
+      ws=new WebSocket(`${WS_URL}/api/v1/stream`);
+      ws.onopen=()=>{ setWsState('connected'); loadHosts(); };
+      ws.onmessage=e=>{
+        try{
+          const snap=JSON.parse(e.data);
+          const tsMs=new Date(snap.ts).getTime();
+          setLiveSnaps(prev=>({...prev,[snap.host]:{metrics:snap.metrics,ts:tsMs}}));
+        }catch(err){}
+      };
+      ws.onclose=()=>{setWsState('disconnected');retry=setTimeout(connect,3000);};
+      ws.onerror=e=>{ console.warn('WS error', e); ws.close(); };
+    };
+    connect();
+    return()=>{clearTimeout(retry);if(ws){ws.onclose=null;ws.close();}};
+  },[]);
+
+  // ── Notification helper ─────────────────────────────────────────────────
+  const notify = msg => {
+    setNotif(msg);
+    setTimeout(()=>setNotif(null),2500);
+  };
+
+  // ── Dashboard CRUD ──────────────────────────────────────────────────────
+  const saveDashboards = next => { setDashboards(next); store.save(next); };
+
+  const updateActiveDash = fn => {
+    const next = dashboards.map(d=>d.id===activeDashId?fn(d):d);
+    saveDashboards(next);
+  };
+
+  const deleteDash = id => {
+    const next = dashboards.filter(d=>d.id!==id);
+    saveDashboards(next);
+    if(activeDashId===id) setActiveDashId(next[0]?.id||null);
+  };
+
+  const newDash = name => {
+    const nd = { ...defaultDashboard(selectedHost), id:mkId(), name };
+    const next=[...dashboards,nd];
+    saveDashboards(next);
+    setActiveDashId(nd.id);
+    setModal(null);
+  };
+
+  const renameDash = name => {
+    updateActiveDash(d=>({...d,name}));
+    setModal(null);
+  };
+
+  // ── Widget CRUD ─────────────────────────────────────────────────────────
+  const addWidget = form => {
+    const nw = { id:mkId(), ...form,
+      warnAt: form.warnAt===''?null:form.warnAt,
+      critAt: form.critAt===''?null:form.critAt,
+      col:1, row: activeDash ? Math.max(...activeDash.widgets.map(w=>w.row+w.h),1) : 1,
+    };
+    updateActiveDash(d=>({...d,widgets:[...d.widgets,nw]}));
+    setModal(null);
+    notify('Widget added');
+  };
+
+  const editWidget = (id, form) => {
+    updateActiveDash(d=>({...d,widgets:d.widgets.map(w=>w.id===id?{...w,...form,warnAt:form.warnAt===''?null:form.warnAt,critAt:form.critAt===''?null:form.critAt}:w)}));
+    setModal(null);
+    notify('Widget saved');
+  };
+
+  const deleteWidget = id => {
+    updateActiveDash(d=>({...d,widgets:d.widgets.filter(w=>w.id!==id)}));
+    notify('Widget removed');
+  };
+
+  // ── Drag & Drop ─────────────────────────────────────────────────────────
+  const handleDrop = useCallback((dropTargetId) => {
+    if(!dragId || dragId===dropTargetId) { setDragId(null); setDropId(null); return; }
+    updateActiveDash(d=>{
+      const ws=[...d.widgets];
+      const ai=ws.findIndex(w=>w.id===dragId);
+      const bi=ws.findIndex(w=>w.id===dropTargetId);
+      if(ai<0||bi<0) return d;
+      [ws[ai],ws[bi]]=[ws[bi],ws[ai]];
+      return {...d,widgets:ws};
+    });
+    setDragId(null); setDropId(null);
+    notify('Widget moved');
+  },[dragId,dashboards,activeDashId]);
+
+  // ── Export / Import ──────────────────────────────────────────────────────
+  const exportDash = () => {
+    if(!activeDash) return;
+    const json = JSON.stringify(activeDash, null, 2);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    a.download = `${activeDash.name.replace(/\s+/g,'-')}.json`;
+    a.click();
+    notify('Dashboard exported');
+  };
+
+  const importDash = () => {
+    const inp = document.createElement('input');
+    inp.type='file'; inp.accept='.json';
+    inp.onchange = e => {
+      const f=e.target.files[0]; if(!f) return;
+      const r=new FileReader();
+      r.onload=ev=>{
+        try{
+          const d=JSON.parse(ev.target.result);
+          d.id=mkId();
+          const next=[...dashboards,d];
+          saveDashboards(next);
+          setActiveDashId(d.id);
+          notify('Dashboard imported');
+        }catch(err){notify('Import failed: invalid JSON');}
+      };
+      r.readAsText(f);
+    };
+    inp.click();
+  };
+
+  const addAgent = async()=>{
+    const addr = agentAddr.trim();
+    if(!addr) return;
+    try{
+      await api.post('/api/v1/targets',{address:addr});
+      notify('Agent added — fetching data…');
+      // Retry hosts quickly after adding
+      for(let i=1;i<=10;i++) setTimeout(loadHosts, i*500);
+    }catch(e){
+      notify('Could not reach server — is it running?');
+    }
+  };
+
+  // ── Live topbar stats ────────────────────────────────────────────────────
+  const live = liveSnaps[selectedHost]?.metrics??{};
+  const cpu  = live['cpu.usage_percent'];
+  const mem  = live['mem.used_percent'];
+  const load = live['load.avg1'];
+
+  const TIME_RANGES = [{l:'5m',v:'-5m'},{l:'15m',v:'-15m'},{l:'1h',v:'-1h'},{l:'6h',v:'-6h'},{l:'24h',v:'-24h'}];
+  const WIDGET_TYPES = [{l:'Timeseries',v:'timeseries',icon:'📈'},{l:'Stat',v:'stat',icon:'🔢'},{l:'Gauge',v:'gauge',icon:'🌡'},{l:'Table',v:'table',icon:'📋'}];
+
+  // Auth gate
+  if(loading) return <div style={{height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg0)'}}><div className="spinner"/></div>;
+  if(authEnabled && !user) return <LoginScreen onLogin={login}/>;
+
+  return (
+    <div className="app">
+      {/* ── Topbar ── */}
+      <header className="topbar">
+        <div className="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12h3l3-9 4 18 3-9h5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          PULSEWATCH
+        </div>
+        <div className="topbar-stats">
+          {selectedHost&&<>
+            <div className="tstat"><span className="lbl">host</span><span className="val">{selectedHost}</span></div>
+            <div className="tstat"><span className="lbl">cpu</span><span className={`val ${cpu>=90?'c':cpu>=75?'w':''}`}>{cpu!=null?`${cpu.toFixed(1)}%`:'--'}</span></div>
+            <div className="tstat"><span className="lbl">mem</span><span className={`val ${mem>=90?'c':mem>=80?'w':''}`}>{mem!=null?`${mem.toFixed(1)}%`:'--'}</span></div>
+            <div className="tstat"><span className="lbl">load</span><span className="val">{load!=null?load.toFixed(2):'--'}</span></div>
+          </>}
+        </div>
+        <div className="topbar-right">
+          {activeDash&&<>
+            <button className="icon-btn" onClick={exportDash} title="Export dashboard JSON">↓ Export</button>
+            <button className="icon-btn" onClick={importDash} title="Import dashboard JSON">↑ Import</button>
+            <button className={`edit-btn ${editMode?'active':''}`} onClick={()=>setEditMode(v=>!v)}>
+              {editMode?'✓ Done':'✎ Edit'}
+            </button>
+          </>}
+          {editMode&&<button className="save-btn" onClick={()=>{store.save(dashboards);notify('Dashboard saved');}}>Save</button>}
+          {activeAlerts.length>0&&(
+            <div className="alert-badge crit" style={{cursor:'pointer'}} onClick={()=>setSideTab('alerts')}>
+              🔔 {activeAlerts.length} firing
+            </div>
+          )}
+          {user&&authEnabled&&<button className="icon-btn" onClick={logout} title="Logout">{user.username} ↩</button>}
+          <div className="live-badge" title={wsState==='disconnected'?'WebSocket offline — REST polling still active':'WebSocket live'}>
+            <div className={`live-dot ${wsState==='connected'?'on':''}`}/>
+            {wsState==='connected'?'live':wsState==='connecting'?'connecting…':'polling'}
+          </div>
+        </div>
+      </header>
+
+      {/* ── Sidebar ── */}
+      <aside className="sidebar">
+        {/* ── Sidebar Tab Bar ── */}
+        <div style={{display:'flex',borderBottom:'1px solid var(--border)',flexShrink:0}}>
+          {[['hosts','Hosts'],['alerts','Alerts'],['prom','Prom'],['settings','⚙']].map(([id,label])=>(
+            <button key={id}
+              style={{flex:1,background:'transparent',border:'none',borderBottom:`2px solid ${sideTab===id?'var(--green)':'transparent'}`,
+                color:sideTab===id?'var(--text0)':'var(--text2)',fontFamily:'var(--font)',fontSize:9,padding:'7px 2px',cursor:'pointer',
+                letterSpacing:'.05em',textTransform:'uppercase',transition:'color .1s'}}
+              onClick={()=>setSideTab(id)}>
+              {id==='alerts'&&activeAlerts.length>0?`${label} (${activeAlerts.length})`:label}
+            </button>
+          ))}
+        </div>
+
+        {sideTab==='hosts'&&<>
+        <div className="sb-section">
+          <div className="sb-title">Hosts</div>
+          {hosts.length===0?<div className="sb-empty">No hosts</div>:hosts.map(h=>(
+            <div key={h} className={`host-item ${h===selectedHost?'active':''}`} onClick={()=>setHost(h)}>
+              <div className={`host-dot ${liveSnaps[h]?'on':''}`}/>
+              <span className="host-name">{h}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="sb-section">
+          <div className="sb-title">Dashboards</div>
+          {dashboards.filter(d=>d.host===selectedHost).map(d=>(
+            <div key={d.id} className={`db-item ${d.id===activeDashId?'active':''}`} onClick={()=>setActiveDashId(d.id)}>
+              <span className="db-item-name">{d.name}</span>
+              <button className="db-del" onClick={e=>{e.stopPropagation();deleteDash(d.id);}}>✕</button>
+            </div>
+          ))}
+          {selectedHost&&(
+            <div className="input-row" style={{paddingTop:6}}>
+              <button className="add-btn" style={{width:'100%'}} onClick={()=>setModal({type:'newDash'})}>+ New Dashboard</button>
+            </div>
+          )}
+        </div>
+
+        {editMode&&activeDash&&(
+          <div className="sb-section">
+            <div className="sb-title">Add Widget</div>
+            <div style={{padding:'4px 10px',display:'flex',flexDirection:'column',gap:4}}>
+              {WIDGET_TYPES.map(wt=>(
+                <button key={wt.v} className="widget-type-btn"
+                  onClick={()=>setModal({type:'widget',widget:null,defaultType:wt.v})}>
+                  <span className="wt-icon">{wt.icon}</span>
+                  {wt.l}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="sb-section">
+          <div className="sb-title">Add Agent</div>
+          <div className="input-row">
+            <input className="sb-input" value={agentAddr} onChange={e=>setAgentAddr(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&addAgent()} placeholder="http://host:19998"/>
+            <button className="add-btn" onClick={addAgent}>+</button>
+          </div>
+        </div>
+
+        <div className="sb-section">
+          <div className="sb-title">Time Range</div>
+          <div className="time-btns">
+            {TIME_RANGES.map(t=>(
+              <button key={t.v} className={`tbtn ${timeRange===t.v?'active':''}`} onClick={()=>setTimeRange(t.v)}>{t.l}</button>
+            ))}
+          </div>
+        </div>
+        </>}
+
+        {/* ── Alerts Tab ── */}
+        {sideTab==='alerts'&&<AlertsPanel active={activeAlerts} history={alertHistory} visible={true}/>}
+
+        {/* ── Prometheus Tab ── */}
+        {sideTab==='prom'&&<PromPanel visible={true}/>}
+
+        {/* ── Settings Tab ── */}
+        {sideTab==='settings'&&<SettingsPanel visible={true}/>}
+
+      </aside>
+
+      {/* ── Main ── */}
+      <main className="main">
+        {!selectedHost?(
+          <div className="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><path d="M3 12h3l3-9 4 18 3-9h5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <h2>No host selected</h2>
+            <p>Add an agent and pick a host from the sidebar</p>
+          </div>
+        ):!activeDash?(
+          <div className="empty-state">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M3 9h18"/></svg>
+            <h2>No dashboard</h2>
+            <p>Click "+ New Dashboard" to create one</p>
+          </div>
+        ):(
+          <div className={`dash-grid ${editMode?'edit-mode':''}`}>
+            {activeDash.widgets.map(w=>(
+              <Widget
+                key={w.id} w={w} host={activeDash.host}
+                liveSnaps={liveSnaps} timeRange={timeRange}
+                editMode={editMode}
+                anomalyScore={anomalies?.[w.metric]}
+                onDelete={deleteWidget}
+                onEdit={w=>setModal({type:'widget',widget:w})}
+                onDragStart={id=>setDragId(id)}
+                onDragOver={id=>setDropId(id)}
+                onDrop={handleDrop}
+                isDragging={dragId===w.id}
+                isDropTarget={dropId===w.id&&dragId!==w.id}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* ── Modals ── */}
+      {modal?.type==='widget'&&(
+        <WidgetModal
+          widget={modal.widget ? modal.widget : modal.defaultType ? {type:modal.defaultType} : null}
+          allMetrics={allMetrics.length>0?allMetrics:['cpu.usage_percent','mem.used_percent','load.avg1']}
+          onSave={form=>{
+            if(modal.widget) editWidget(modal.widget.id,form);
+            else addWidget(form);
+          }}
+          onClose={()=>setModal(null)}
+        />
+      )}
+      {modal?.type==='newDash'&&(
+        <NameModal initial="New Dashboard" onSave={newDash} onClose={()=>setModal(null)}/>
+      )}
+      {modal?.type==='rename'&&(
+        <NameModal initial={activeDash?.name||''} onSave={renameDash} onClose={()=>setModal(null)}/>
+      )}
+
+      {/* ── Notification ── */}
+      {notif&&<div className="notif">{notif}</div>}
+    </div>
+  );
+}
+
+
+// ── Alert Panel ──────────────────────────────────────────────────────────
+function useAlerts() {
+  const [active, setActive]   = useState([]);
+  const [history, setHistory] = useState([]);
+  useEffect(()=>{
+    const load = () => {
+      api.get('/api/v1/alerts/active').then(d=>setActive(d.alerts||[])).catch(()=>{});
+      api.get('/api/v1/alerts/history?limit=50').then(d=>setHistory(d.events||[])).catch(()=>{});
+    };
+    load();
+    const t = setInterval(load, 10000);
+    return ()=>clearInterval(t);
+  },[]);
+  return {active, history};
+}
+
+function AlertBadge({severity, label}) {
+  const cls = severity==='critical'?'crit':severity==='warning'?'warn':'info';
+  return <span className={`alert-badge ${cls}`}>{label||severity}</span>;
+}
+
+function AlertsPanel({active, history, visible}) {
+  if(!visible) return null;
+  return (
+    <div style={{borderTop:'1px solid var(--border)'}}>
+      <div className="sb-section" style={{borderBottom:'none'}}>
+        <div className="sb-title" style={{display:'flex',alignItems:'center',justifyContent:'space-between',paddingRight:14}}>
+          <span>Active Alerts</span>
+          {active.length>0 && <AlertBadge severity={active[0]?.severity} label={String(active.length)}/>}
+        </div>
+        {active.length===0
+          ? <div className="sb-empty">All clear ✓</div>
+          : active.map(a=>(
+            <div key={a.id} className="alert-item">
+              <div className="alert-name">{a.rule_name}</div>
+              <div className="alert-meta">{a.host} · <AlertBadge severity={a.severity}/></div>
+              <div className="alert-val">{a.metric}: {a.value?.toFixed(2)} (threshold {a.threshold})</div>
+            </div>
+          ))
+        }
+      </div>
+      {history.length>0&&(
+        <div className="sb-section">
+          <div className="sb-title">Recent History</div>
+          {history.slice(0,8).map(e=>(
+            <div key={e.id} className="alert-item">
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <span className="alert-name" style={{fontSize:10}}>{e.rule_name}</span>
+                <span className={`alert-badge ${e.state==='resolved'?'ok':e.severity==='critical'?'crit':'warn'}`}>{e.state}</span>
+              </div>
+              <div className="alert-meta">{e.host} · {new Date(e.fired_at).toLocaleTimeString()}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Anomaly hook ──────────────────────────────────────────────────────────
+function useAnomalies(host) {
+  const [anomalies, setAnomalies] = useState({});
+  useEffect(()=>{
+    if(!host) return;
+    const load = ()=> {
+      api.get(`/api/v1/anomalies?host=${encodeURIComponent(host)}`).then(d=>{
+        const map = {};
+        (d.scores||[]).forEach(s=>{ map[s.metric] = s; });
+        setAnomalies(map);
+      }).catch(()=>{});
+    };
+    load();
+    const t = setInterval(load, 15000);
+    return ()=>clearInterval(t);
+  },[host]);
+  return anomalies;
+}
+
+// ── Auth Hook ─────────────────────────────────────────────────────────────
+function useAuth() {
+  const [user, setUser]       = useState(null);
+  const [authEnabled, setAuthEnabled] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    // Status is always public — use it to detect if auth is enabled
+    api.get('/api/v1/status').then(d=>{
+      const enabled = d.auth_enabled || false;
+      setAuthEnabled(enabled);
+      if(!enabled) {
+        // Auth disabled → always logged in as admin
+        setUser({username:'admin', role:'admin'});
+        setLoading(false);
+        return;
+      }
+      // Auth enabled → check if we have a valid session token
+      const token = window._pwToken || sessionStorage.getItem('pw_token') || '';
+      if(!token) { setUser(null); setLoading(false); return; }
+      api.get('/api/v1/auth/me')
+        .then(u => { setUser(u); setLoading(false); })
+        .catch(() => { setUser(null); setLoading(false); });
+    }).catch(()=>{
+      // Server unreachable → still show the app, API calls will fail gracefully
+      setUser({username:'admin', role:'admin'});
+      setLoading(false);
+    });
+  },[]);
+
+  const login = async(username, password) => {
+    const d = await api.post('/api/v1/auth/login',{username,password});
+    if(d.token) {
+      window._pwToken = d.token;
+      sessionStorage.setItem('pw_token', d.token);
+      setUser({username: d.username, role: d.role || 'admin'});
+    } else {
+      throw new Error(d.error || 'Login failed');
+    }
+    return d;
+  };
+
+  const logout = () => {
+    fetch(`${SERVER}/api/v1/auth/logout`,{method:'POST',headers:{'Authorization':`Bearer ${window._pwToken||''}`}});
+    window._pwToken = null;
+    setUser(null);
+  };
+
+  return {user, authEnabled, loading, login, logout};
+}
+
+// ── Login Screen ──────────────────────────────────────────────────────────
+function LoginScreen({onLogin}) {
+  const [user, setUser] = useState('admin');
+  const [pass, setPass] = useState('');
+  const [err,  setErr]  = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async()=>{
+    if(!user||!pass) return;
+    setBusy(true); setErr('');
+    try {
+      await onLogin(user, pass);
+    } catch(e) {
+      setErr('Invalid credentials');
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="auth-overlay">
+      <div className="auth-box">
+        <div className="auth-title">⬡ PULSEWATCH</div>
+        <div className="auth-subtitle">Server Monitoring</div>
+        <div className="form-group">
+          <label className="form-label">Username</label>
+          <input className="form-input" value={user} onChange={e=>setUser(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&submit()} autoFocus/>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Password</label>
+          <input className="form-input" type="password" value={pass} onChange={e=>setPass(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&submit()}/>
+        </div>
+        <div className="auth-err">{err}</div>
+        <button className="btn-primary" style={{width:'100%',padding:'8px'}} onClick={submit} disabled={busy}>
+          {busy?'Signing in…':'Sign In'}
+        </button>
+        <div style={{fontSize:9,color:'var(--text2)',textAlign:'center'}}>Default: admin / admin</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Prometheus Targets Panel ──────────────────────────────────────────────
+function PromPanel({visible}) {
+  const [targets, setTargets] = useState([]);
+  const [url, setUrl]         = useState('http://localhost:9090/metrics');
+  const [name, setName]       = useState('');
+
+  const load = ()=> api.get('/api/v1/prom/targets').then(d=>setTargets(d.targets||[])).catch(()=>{});
+  useEffect(()=>{ if(visible) load(); },[visible]);
+
+  if(!visible) return null;
+
+  const add = async()=>{
+    if(!url.trim()) return;
+    await api.post('/api/v1/prom/targets',{url:url.trim(),name:name||url,interval:'15s'});
+    load();
+  };
+
+  return (
+    <div className="sb-section">
+      <div className="sb-title">Prometheus Targets</div>
+      {targets.length===0
+        ? <div className="sb-empty">No targets</div>
+        : targets.map(t=>(
+          <div key={t.id} style={{padding:'4px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:10,color:'var(--text1)',overflow:'hidden',textOverflow:'ellipsis'}}>{t.name||t.url}</span>
+            <span className="tag-chip">{(t.interval/1e9||15)}s</span>
+          </div>
+        ))
+      }
+      <div className="input-row" style={{flexDirection:'column',gap:4}}>
+        <input className="sb-input" value={name} onChange={e=>setName(e.target.value)} placeholder="Name (optional)"/>
+        <div style={{display:'flex',gap:5}}>
+          <input className="sb-input" style={{flex:1}} value={url} onChange={e=>setUrl(e.target.value)} placeholder="http://host/metrics"
+            onKeyDown={e=>e.key==='Enter'&&add()}/>
+          <button className="add-btn" onClick={add}>+</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Settings Panel ────────────────────────────────────────────────────────
+function SettingsPanel({visible}) {
+  const [anomWin,  setAnomWin]  = useState(120);
+  const [anomThr,  setAnomThr]  = useState(3.0);
+  const [status, setStatus]     = useState(null);
+
+  useEffect(()=>{
+    if(!visible) return;
+    api.get('/api/v1/status').then(setStatus).catch(()=>{});
+  },[visible]);
+
+  if(!visible) return null;
+  return (
+    <div className="sb-section">
+      <div className="sb-title">Server Info</div>
+      {status&&<>
+        <div className="settings-row"><span className="settings-label">Version</span><span style={{fontSize:10,color:'var(--text0)'}}>{status.version}</span></div>
+        <div className="settings-row"><span className="settings-label">Uptime</span><span style={{fontSize:10,color:'var(--text0)'}}>{status.uptime_sec}s</span></div>
+        <div className="settings-row"><span className="settings-label">WS Clients</span><span style={{fontSize:10,color:'var(--text0)'}}>{status.ws_clients}</span></div>
+        <div className="settings-row"><span className="settings-label">Active Alerts</span>
+          <span style={{fontSize:10,color:status.active_alerts>0?'var(--red)':'var(--green)'}}>{status.active_alerts}</span></div>
+        <div className="settings-row"><span className="settings-label">Anomalies</span>
+          <span style={{fontSize:10,color:status.anomalies>0?'var(--amber)':'var(--green)'}}>{status.anomalies}</span></div>
+      </>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

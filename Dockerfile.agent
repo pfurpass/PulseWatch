@@ -1,0 +1,24 @@
+# ── Stage 1: Build ───────────────────────────────────────────────────────────
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /src
+COPY go.mod ./
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags "-s -w" \
+    -o /pulsewatch-agent \
+    ./cmd/agent/
+
+# ── Stage 2: Minimal Runtime ─────────────────────────────────────────────────
+FROM scratch
+
+COPY --from=builder /pulsewatch-agent /pulsewatch-agent
+
+# Agent lauscht standardmäßig auf Port 19998
+EXPOSE 19998
+
+# /proc und /sys des Host-Systems müssen gemountet werden:
+# docker run -v /proc:/proc:ro -v /sys:/sys:ro -p 19998:19998 pulsewatch/agent
+ENTRYPOINT ["/pulsewatch-agent"]
+CMD ["-listen", ":19998"]
