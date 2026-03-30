@@ -2,6 +2,8 @@
 
 **Self-hosted server monitoring — starts in 30 seconds, grows with you.**
 
+![Screenshot](pulsewatch.png)
+
 ## Quick Start
 
 ```bash
